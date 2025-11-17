@@ -3,11 +3,12 @@ import { cookies } from "next/headers";
 import { createClient } from "@supabase/supabase-js";
 import Image from "next/image";
 import ClearCookieButton from "@/components/ClearCookieButton";
+import { isValidUUID } from "@/lib/validateUUID";
 
 export default async function ResultPage() {
   const cookieStore = await cookies();
   const participantId = cookieStore.get("participant_id")?.value;
-  if (!participantId) {
+  if (!participantId || !isValidUUID(participantId)) {
     redirect("/");
   }
 
@@ -20,7 +21,7 @@ export default async function ResultPage() {
   const { data: participant, error } = await supabase
     .from("participants")
     .select(
-      "id, current_step, reading_score, listening_score, score_percent, name, email"
+      "id, current_step, reading_score, listening_score, score_percent, name, email, phone, correct_answers, answers, created_at, completed_at"
     )
     .eq("id", participantId)
     .single();
@@ -34,6 +35,42 @@ export default async function ResultPage() {
   if (step !== 3) {
     if (step === 0) redirect("/");
     redirect("/test/start");
+  }
+
+  // Update participant data in Google Sheets
+  const googleUrl = process.env.GOOGLE_URL;
+  const googleSecret = process.env.GOOGLE_SECRET;
+
+  if (googleUrl && googleSecret && participant) {
+    try {
+      const googleData = {
+        secret: googleSecret,
+        id: participant.id,
+        name: participant.name,
+        email: participant.email,
+        phone: participant.phone || "",
+        score_percent: participant.score_percent || 0,
+        reading_score: participant.reading_score || 0,
+        listening_score: participant.listening_score || 0,
+        correct_answers: participant.correct_answers || [],
+        answers: participant.answers || [],
+        created_at: participant.created_at || new Date().toISOString(),
+        completed_at: participant.completed_at || new Date().toISOString(),
+      };
+
+      // Send to Google Sheets (fire and forget - don't block page render)
+      fetch(googleUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(googleData),
+      }).catch(() => {
+        // Silently fail - don't block page render
+      });
+    } catch {
+      // Silently fail - don't block page render
+    }
   }
 
   // Fetch totals by type

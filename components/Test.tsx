@@ -71,39 +71,10 @@ export default function Test({
     ? getPartForQuestion(current.id, current.type)
     : null;
 
-  // Check if this is the first question in the part (for shared audio)
-  const isFirstQuestionInPart = currentPart
-    ? currentPart.questionIds[0] === current?.id
-    : false;
-
-  // Determine if we should show audio for this question
-  // For PART 4 and PART 5, show audio only on first question of the part
-  const shouldShowAudio =
-    current?.question_audio_url &&
-    (isFirstQuestionInPart ||
-      !currentPart ||
-      currentPart.questionIds.length === 1);
-
-  //   const patchProgress = async (payload: {
-  //     has_started?: boolean;
-  //     current_step?: number;
-  //   }) => {
-  //     try {
-  //       await fetch("/api/participant", {
-  //         method: "PATCH",
-  //         headers: { "Content-Type": "application/json" },
-  //         body: JSON.stringify(payload),
-  //       });
-  //     } catch {
-  //       // ignore
-  //     }
-  //   };
-
   const handleSubmitAnswer = async () => {
     if (!current || !selectedOption || isSubmitting) return;
 
     setIsSubmitting(true);
-    // Send answer to server to validate and update participant progress
     try {
       const res = await fetch("/api/answer", {
         method: "POST",
@@ -211,21 +182,29 @@ export default function Test({
                       )}
                       {(current.question_image_url ||
                         current.id === 1 ||
-                        current.id === 2) && (
-                        <Image
-                          width={100}
-                          height={100}
-                          src={
-                            current.id === 1
-                              ? "/q1.png"
-                              : current.id === 2
-                              ? "/1248_item_image.png"
-                              : current.question_image_url!
-                          }
-                          alt="question"
-                          className="w-full rounded-lg border border-gray-200"
-                        />
-                      )}
+                        current.id === 2) &&
+                        (current.id === 1 || current.id === 2 ? (
+                          <Image
+                            src={
+                              current.id === 1
+                                ? "/q1.png"
+                                : "/1248_item_image.png"
+                            }
+                            alt="question"
+                            width={800}
+                            height={600}
+                            className="w-full rounded-lg border border-gray-200"
+                            unoptimized
+                          />
+                        ) : (
+                          <Image
+                            width={100}
+                            height={100}
+                            src={current.question_image_url!}
+                            alt="question"
+                            className="w-full rounded-lg border border-gray-200"
+                          />
+                        ))}
                     </div>
                   )}
 
@@ -256,11 +235,14 @@ export default function Test({
                         key={idx}
                         type="button"
                         onClick={() => setSelectedOption(option)}
+                        disabled={isSubmitting}
                         className={[
-                          "w-full text-left px-4 py-3 rounded-lg border-2 transition-all duration-200 font-medium cursor-pointer",
-                          isSelected
-                            ? "border-brand-green bg-green-light/30 text-text-dark"
-                            : "border-gray-300 hover:border-brand-green hover:bg-green-light/20 text-text-dark",
+                          "w-full text-left px-4 py-3 rounded-lg border-2 transition-all duration-200 font-medium",
+                          isSubmitting
+                            ? "cursor-not-allowed opacity-50 border-gray-300 text-gray-500"
+                            : isSelected
+                            ? "border-brand-green bg-green-light/30 text-text-dark cursor-pointer"
+                            : "border-gray-300 hover:border-brand-green hover:bg-green-light/20 text-text-dark cursor-pointer",
                         ].join(" ")}
                       >
                         {option}

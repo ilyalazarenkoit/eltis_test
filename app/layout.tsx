@@ -15,6 +15,9 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Eltis Test - Student Assessment",
   description: "Interactive test platform for students",
+  icons: {
+    icon: "/icon.png",
+  },
 };
 
 export default function RootLayout({

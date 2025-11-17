@@ -2,12 +2,13 @@ import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import Test, { type Question } from "@/components/Test";
 import { createClient } from "@supabase/supabase-js";
+import { isValidUUID } from "@/lib/validateUUID";
 
 // Server Component with guards and data loading
 export default async function TestStartPage() {
   const cookieStore = await cookies();
   const participantId = cookieStore.get("participant_id")?.value;
-  if (!participantId) {
+  if (!participantId || !isValidUUID(participantId)) {
     redirect("/");
   }
 

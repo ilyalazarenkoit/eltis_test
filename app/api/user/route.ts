@@ -59,7 +59,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           error: "Failed to create participant",
-          details: participantError.message,
         },
         { status: 500 }
       );
@@ -77,11 +76,46 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           error: "Failed to fetch questions",
-          details: questionsError.message,
         },
         { status: 500 }
       );
     }
+    // Send participant data to Google Sheets (non-blocking)
+    const googleUrl = process.env.GOOGLE_URL;
+    const googleSecret = process.env.GOOGLE_SECRET;
+
+    if (googleUrl && googleSecret) {
+      try {
+        const googleData = {
+          secret: googleSecret,
+          id: participantData.id,
+          name: participantData.name,
+          email: participantData.email,
+          phone: participantData.phone || "",
+          score_percent: participantData.score_percent || 0,
+          reading_score: participantData.reading_score || 0,
+          listening_score: participantData.listening_score || 0,
+          correct_answers: participantData.correct_answers || [],
+          answers: participantData.answers || [],
+          created_at: participantData.created_at || new Date().toISOString(),
+          completed_at: participantData.completed_at || null,
+        };
+
+        // Send to Google Sheets asynchronously (don't wait for response)
+        fetch(googleUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(googleData),
+        }).catch(() => {
+          // Silently fail - don't block user registration
+        });
+      } catch {
+        // Silently fail - don't block user registration
+      }
+    }
+
     const res = NextResponse.json(
       {
         success: true,
@@ -96,6 +130,7 @@ export async function POST(request: NextRequest) {
       res.cookies.set("participant_id", String(participantData.id), {
         httpOnly: true,
         sameSite: "strict",
+        secure: true,
         // 1 day in seconds
         maxAge: 60 * 60 * 24,
         path: "/",
