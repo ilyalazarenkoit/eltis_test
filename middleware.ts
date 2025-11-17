@@ -4,8 +4,8 @@ import { rateLimit, getClientIdentifier } from "./lib/rateLimit";
 // Rate limit configuration
 const RATE_LIMITS = {
   "/api/user": {
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    maxRequests: 5, // 5 registrations per 15 minutes
+    windowMs: 5 * 60 * 1000, // 5 minutes
+    maxRequests: 5, // 5 registrations per 5 minutes
   },
   "/api/answer": {
     windowMs: 60 * 1000, // 1 minute
@@ -39,16 +39,26 @@ export async function middleware(request: NextRequest) {
     const result = rateLimit(identifier, config);
 
     if (!result.success) {
+      const retryAfterSeconds = Math.ceil(
+        (result.resetTime - Date.now()) / 1000
+      );
+      const resetDate = new Date(result.resetTime);
+
       return NextResponse.json(
         {
           error: "Too many requests. Please try again later.",
+          rateLimit: {
+            retryAfter: retryAfterSeconds,
+            resetTime: result.resetTime,
+            resetDate: resetDate.toISOString(),
+            limit: config.maxRequests,
+            remaining: result.remaining,
+          },
         },
         {
           status: 429,
           headers: {
-            "Retry-After": String(
-              Math.ceil((result.resetTime - Date.now()) / 1000)
-            ),
+            "Retry-After": String(retryAfterSeconds),
             "X-RateLimit-Limit": String(config.maxRequests),
             "X-RateLimit-Remaining": String(result.remaining),
             "X-RateLimit-Reset": String(result.resetTime),

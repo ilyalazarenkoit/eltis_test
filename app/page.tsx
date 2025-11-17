@@ -4,6 +4,12 @@ import Image from "next/image";
 import { useEffect, useState, FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Spinner from "@/components/Spinner";
+import {
+  validateAndSanitizeName,
+  validateAndSanitizeEmail,
+  validateAndSanitizePhone,
+  FIELD_LIMITS,
+} from "@/lib/validation";
 
 export default function Home() {
   const router = useRouter();
@@ -19,6 +25,10 @@ export default function Home() {
   }>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [rateLimitResetTime, setRateLimitResetTime] = useState<number | null>(
+    null
+  );
+  const [timeRemaining, setTimeRemaining] = useState<number>(0);
 
   // Guard: if participant exists and has_started, redirect to test start (or result if completed)
   useEffect(() => {
@@ -46,15 +56,32 @@ export default function Home() {
     checkStatus();
   }, [router]);
 
-  const validateEmail = (email: string) => {
-    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return re.test(email);
-  };
+  // Timer for rate limit countdown
+  useEffect(() => {
+    if (!rateLimitResetTime) {
+      setTimeRemaining(0);
+      return;
+    }
 
-  const validatePhone = (phone: string) => {
-    const re = /^[\d\s\-\+\(\)]+$/;
-    return re.test(phone) && phone.replace(/\D/g, "").length >= 10;
-  };
+    const updateTimer = () => {
+      const now = Date.now();
+      const remaining = Math.max(
+        0,
+        Math.ceil((rateLimitResetTime - now) / 1000)
+      );
+      setTimeRemaining(remaining);
+
+      if (remaining <= 0) {
+        setRateLimitResetTime(null);
+        setTimeRemaining(0);
+      }
+    };
+
+    updateTimer();
+    const interval = setInterval(updateTimer, 1000);
+
+    return () => clearInterval(interval);
+  }, [rateLimitResetTime]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -71,24 +98,21 @@ export default function Home() {
     const newErrors: typeof errors = {};
 
     // Validate name
-    if (!formData.name.trim()) {
-      newErrors.name = "Name is required";
-    } else if (formData.name.trim().length < 2) {
-      newErrors.name = "Name must be at least 2 characters";
+    const nameValidation = validateAndSanitizeName(formData.name);
+    if (!nameValidation.isValid) {
+      newErrors.name = nameValidation.error || "Invalid name";
     }
 
     // Validate email
-    if (!formData.email.trim()) {
-      newErrors.email = "Email is required";
-    } else if (!validateEmail(formData.email)) {
-      newErrors.email = "Please enter a valid email address";
+    const emailValidation = validateAndSanitizeEmail(formData.email);
+    if (!emailValidation.isValid) {
+      newErrors.email = emailValidation.error || "Invalid email";
     }
 
     // Validate phone
-    if (!formData.phone.trim()) {
-      newErrors.phone = "Phone number is required";
-    } else if (!validatePhone(formData.phone)) {
-      newErrors.phone = "Please enter a valid phone number";
+    const phoneValidation = validateAndSanitizePhone(formData.phone);
+    if (!phoneValidation.isValid) {
+      newErrors.phone = phoneValidation.error || "Invalid phone number";
     }
 
     if (Object.keys(newErrors).length > 0) {
@@ -105,17 +129,27 @@ export default function Home() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          name: formData.name.trim(),
-          email: formData.email.trim(),
-          phone: formData.phone.trim(),
+          name: validateAndSanitizeName(formData.name).sanitized,
+          email: validateAndSanitizeEmail(formData.email).sanitized,
+          phone: validateAndSanitizePhone(formData.phone).sanitized,
         }),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
+        // Handle rate limit error with timer
+        if (response.status === 429 && data.rateLimit) {
+          setRateLimitResetTime(data.rateLimit.resetTime);
+          throw new Error(
+            "We've received too many registration requests. Please wait a moment before trying again."
+          );
+        }
         throw new Error(data.error || "Failed to submit form");
       }
+
+      // Clear rate limit timer on success
+      setRateLimitResetTime(null);
 
       try {
         if (Array.isArray(data.questions)) {
@@ -192,6 +226,7 @@ export default function Home() {
                 name="name"
                 value={formData.name}
                 onChange={handleChange}
+                maxLength={FIELD_LIMITS.name.max}
                 className={`w-full px-4 py-3 rounded-lg border ${
                   errors.name
                     ? "border-red-300 focus:border-red-500 focus:ring-red-500"
@@ -226,6 +261,7 @@ export default function Home() {
                 name="email"
                 value={formData.email}
                 onChange={handleChange}
+                maxLength={FIELD_LIMITS.email.max}
                 className={`w-full px-4 py-3 rounded-lg border ${
                   errors.email
                     ? "border-red-300 focus:border-red-500 focus:ring-red-500"
@@ -260,6 +296,7 @@ export default function Home() {
                 name="phone"
                 value={formData.phone}
                 onChange={handleChange}
+                maxLength={FIELD_LIMITS.phone.max}
                 className={`w-full px-4 py-3 rounded-lg border ${
                   errors.phone
                     ? "border-red-300 focus:border-red-500 focus:ring-red-500"
@@ -282,19 +319,50 @@ export default function Home() {
 
             {/* Submit Error */}
             {submitError && (
-              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-                <p className="text-sm">{submitError}</p>
+              <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 shadow-sm">
+                <div className="flex items-start gap-3">
+                  <div className="shrink-0 mt-0.5">
+                    <svg
+                      className="w-5 h-5 text-amber-600"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                      />
+                    </svg>
+                  </div>
+                  <p className="text-sm text-amber-800 leading-relaxed">
+                    {submitError}
+                  </p>
+                </div>
               </div>
             )}
 
             {/* Submit Button */}
             <button
               type="submit"
-              disabled={isSubmitting}
+              disabled={isSubmitting || timeRemaining > 0}
               className="w-full cursor-pointer bg-brand-green text-white font-semibold py-3 px-6 rounded-lg hover:bg-brand-green-hover focus:outline-none focus:ring-2 focus:ring-brand-green focus:ring-offset-2 transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-2"
             >
               {isSubmitting && <Spinner />}
-              {isSubmitting ? "Submitting..." : "Start Test"}
+              {timeRemaining > 0 ? (
+                <span>
+                  You can try again in:{" "}
+                  <span className="font-mono">
+                    {Math.floor(timeRemaining / 60)}:
+                    {String(timeRemaining % 60).padStart(2, "0")}
+                  </span>
+                </span>
+              ) : isSubmitting ? (
+                "Submitting..."
+              ) : (
+                "Start Test"
+              )}
             </button>
           </form>
 
