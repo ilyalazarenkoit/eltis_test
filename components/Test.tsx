@@ -4,6 +4,7 @@ import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { getPartForQuestion } from "@/constants/testParts";
+import Spinner from "@/components/Spinner";
 
 export type Question = {
   id: number;
@@ -30,6 +31,7 @@ export default function Test({
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [answers, setAnswers] = useState<Record<number, string>>({});
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const current = questions[currentIndex];
   const progress = ((currentIndex + 1) / total) * 100;
@@ -98,8 +100,9 @@ export default function Test({
   //   };
 
   const handleSubmitAnswer = async () => {
-    if (!current || !selectedOption) return;
+    if (!current || !selectedOption || isSubmitting) return;
 
+    setIsSubmitting(true);
     // Send answer to server to validate and update participant progress
     try {
       const res = await fetch("/api/answer", {
@@ -120,14 +123,16 @@ export default function Test({
       const isCompleted = json.completed || currentIndex === total - 1;
       if (isCompleted) {
         if (onComplete) onComplete(updated);
-        // Redirect to results page
-        router.push("/result");
+        // Use replace instead of push to prevent back navigation
+        router.replace("/result");
         return;
       }
 
       setCurrentIndex((idx) => idx + 1);
     } catch {
       // If API fails, do not advance to keep consistency
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -171,8 +176,8 @@ export default function Test({
               <h3 className="text-lg font-semibold text-text-dark mb-2 text-center">
                 {currentPart.title}
               </h3>
-              <p className="text-base text-gray-700">
-                <span className="font-semibold">Description:</span>{" "}
+              <p className="text-base text-gray-700 text-center">
+                <span className="font-semibold ">Description:</span>{" "}
                 {currentPart.description}
               </p>
             </div>
@@ -204,11 +209,19 @@ export default function Test({
                           src={current.question_audio_url}
                         />
                       )}
-                      {current.question_image_url && (
+                      {(current.question_image_url ||
+                        current.id === 1 ||
+                        current.id === 2) && (
                         <Image
                           width={100}
                           height={100}
-                          src={current.question_image_url}
+                          src={
+                            current.id === 1
+                              ? "/q1.png"
+                              : current.id === 2
+                              ? "/1248_item_image.png"
+                              : current.question_image_url!
+                          }
                           alt="question"
                           className="w-full rounded-lg border border-gray-200"
                         />
@@ -261,14 +274,15 @@ export default function Test({
                   <button
                     type="button"
                     onClick={handleSubmitAnswer}
-                    disabled={!selectedOption}
+                    disabled={!selectedOption || isSubmitting}
                     className={[
-                      "w-auto px-5 py-3 rounded-lg font-semibold transition-colors cursor-pointer",
-                      selectedOption
+                      "w-auto px-5 py-3 rounded-lg font-semibold transition-colors cursor-pointer flex items-center gap-2",
+                      selectedOption && !isSubmitting
                         ? "bg-brand-green hover:bg-brand-green-hover text-white"
                         : "bg-gray-200 text-gray-500 cursor-not-allowed",
                     ].join(" ")}
                   >
+                    {isSubmitting && <Spinner />}
                     Submit answer
                   </button>
                 </div>

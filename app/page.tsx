@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useEffect, useState, FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import Spinner from "@/components/Spinner";
 
 export default function Home() {
   const router = useRouter();
@@ -290,8 +291,9 @@ export default function Home() {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="w-full cursor-pointer bg-brand-green text-white font-semibold py-3 px-6 rounded-lg hover:bg-brand-green-hover focus:outline-none focus:ring-2 focus:ring-brand-green focus:ring-offset-2 transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+              className="w-full cursor-pointer bg-brand-green text-white font-semibold py-3 px-6 rounded-lg hover:bg-brand-green-hover focus:outline-none focus:ring-2 focus:ring-brand-green focus:ring-offset-2 transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-2"
             >
+              {isSubmitting && <Spinner />}
               {isSubmitting ? "Submitting..." : "Start Test"}
             </button>
           </form>

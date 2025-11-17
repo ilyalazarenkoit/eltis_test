@@ -54,10 +54,20 @@ export default async function TestStartPage() {
       : []
   );
   const ordered = questions as Question[];
-  const firstUnansweredIdx =
-    ordered.findIndex((q) => !answeredIds.has(q.id)) === -1
-      ? 0
-      : ordered.findIndex((q) => !answeredIds.has(q.id));
+  const totalQuestions = ordered.length;
+  const answeredCount = answeredIds.size;
+
+  // If all questions are answered, redirect to result (even if current_step not yet updated)
+  if (answeredCount >= totalQuestions) {
+    redirect("/result");
+  }
+
+  const firstUnansweredIdx = ordered.findIndex((q) => !answeredIds.has(q.id));
+
+  // Safety check: if no unanswered question found but we're here, go to result
+  if (firstUnansweredIdx === -1) {
+    redirect("/result");
+  }
 
   // Render client component with questions and initial index
   return <Test questions={ordered} initialIndex={firstUnansweredIdx} />;
