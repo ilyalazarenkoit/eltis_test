@@ -7,9 +7,9 @@ import { useRouter } from "next/navigation";
 export default function Home() {
   const router = useRouter();
   const [formData, setFormData] = useState({
-    name: "il",
-    email: "il@gmail.com",
-    phone: "49234567890",
+    name: "",
+    email: "",
+    phone: "",
   });
   const [errors, setErrors] = useState<{
     name?: string;
