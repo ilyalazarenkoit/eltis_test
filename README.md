@@ -16,8 +16,6 @@
 
 ELTIS Test Platform is a comprehensive web application that delivers an engaging English language proficiency assessment experience. Built as a key component of JAMM School's sales funnel, it captures student information, administers listening and reading comprehension tests, and seamlessly integrates results into the school's CRM workflow.
 
-**🔗 Live Application**: [https://eltis-test.vercel.app/](https://eltis-test.vercel.app/)
-
 ### 🎯 Key Features
 
 - **📝 Interactive Test Interface**: Smooth, user-friendly testing experience with real-time progress tracking
