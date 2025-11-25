@@ -164,6 +164,33 @@ export default function Home() {
         console.warn("Unable to persist questions to localStorage", e);
       }
 
+      // Send participant data to Google Sheets (fire and forget - don't block navigation)
+      // This approach is more reliable than server-side fetch in Vercel serverless functions
+      // The API endpoint will verify participant_id from cookie and add the secret server-side
+      if (data.participant) {
+        fetch("/api/google-sheets", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            id: data.participant.id,
+            name: data.participant.name,
+            email: data.participant.email,
+            phone: data.participant.phone || "",
+            score_percent: data.participant.score_percent || 0,
+            reading_score: data.participant.reading_score || 0,
+            listening_score: data.participant.listening_score || 0,
+            correct_answers: data.participant.correct_answers || [],
+            answers: data.participant.answers || [],
+            created_at: data.participant.created_at || new Date().toISOString(),
+            completed_at: data.participant.completed_at || null,
+          }),
+        }).catch(() => {
+          // Silently fail - don't block user navigation
+        });
+      }
+
       router.push("/test/start");
     } catch (error) {
       console.error("Submit error:", error);

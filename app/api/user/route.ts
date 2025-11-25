@@ -98,6 +98,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create response after all Supabase operations are successful
+    // Google Sheets update will be handled by client-side call for reliability
     const res = NextResponse.json(
       {
         success: true,
@@ -120,45 +121,6 @@ export async function POST(request: NextRequest) {
       });
     } catch (e) {
       console.warn("Failed to set participant_id cookie", e);
-    }
-
-    // Send participant data to Google Sheets only after successful Supabase operations
-    // This runs after response is prepared but doesn't block the response
-    const googleUrl = process.env.GOOGLE_URL;
-    const googleSecret = process.env.GOOGLE_SECRET;
-
-    if (googleUrl && googleSecret && participantData) {
-      // Execute asynchronously after response is ready
-      Promise.resolve().then(() => {
-        try {
-          const googleData = {
-            secret: googleSecret,
-            id: participantData.id,
-            name: participantData.name,
-            email: participantData.email,
-            phone: participantData.phone || "",
-            score_percent: participantData.score_percent || 0,
-            reading_score: participantData.reading_score || 0,
-            listening_score: participantData.listening_score || 0,
-            correct_answers: participantData.correct_answers || [],
-            answers: participantData.answers || [],
-            created_at: participantData.created_at || new Date().toISOString(),
-            completed_at: participantData.completed_at || null,
-          };
-
-          fetch(googleUrl, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify(googleData),
-          }).catch(() => {
-            // Silently fail - don't block user registration
-          });
-        } catch {
-          // Silently fail - don't block user registration
-        }
-      });
     }
 
     return res;
