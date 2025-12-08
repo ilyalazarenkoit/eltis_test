@@ -21,7 +21,7 @@ export default async function ResultPage() {
   const { data: participant, error } = await supabase
     .from("participants")
     .select(
-      "id, current_step, reading_score, listening_score, score_percent, name, email, phone, correct_answers, answers, created_at, completed_at"
+      "id, current_step, reading_score, listening_score, score_percent, name, child_name, email, phone, correct_answers, answers, created_at, completed_at"
     )
     .eq("id", participantId)
     .single();
@@ -46,7 +46,8 @@ export default async function ResultPage() {
       const googleData = {
         secret: googleSecret,
         id: participant.id,
-        name: participant.name,
+        name: participant.child_name || "",
+        parent_name: participant.name || "",
         email: participant.email,
         phone: participant.phone || "",
         score_percent: participant.score_percent || 0,
@@ -109,7 +110,8 @@ export default async function ResultPage() {
           <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 sm:p-8 space-y-6">
             <div>
               <h2 className="text-xl font-semibold text-black mb-2">
-                Thank you{participant.name ? `, ${participant.name}` : ""}!
+                Thank you
+                {participant.child_name ? `, ${participant.child_name}` : ""}!
               </h2>
               <p className="text-gray-700">
                 Our manager will contact you soon

@@ -14,14 +14,16 @@ import {
 export default function Home() {
   const router = useRouter();
   const [formData, setFormData] = useState({
-    name: "",
+    parentName: "",
+    parentPhone: "",
     email: "",
-    phone: "",
+    childName: "",
   });
   const [errors, setErrors] = useState<{
-    name?: string;
+    parentName?: string;
+    parentPhone?: string;
     email?: string;
-    phone?: string;
+    childName?: string;
   }>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -97,10 +99,20 @@ export default function Home() {
     setSubmitError(null);
     const newErrors: typeof errors = {};
 
-    // Validate name
-    const nameValidation = validateAndSanitizeName(formData.name);
-    if (!nameValidation.isValid) {
-      newErrors.name = nameValidation.error || "Invalid name";
+    // Validate parent name
+    const parentNameValidation = validateAndSanitizeName(formData.parentName);
+    if (!parentNameValidation.isValid) {
+      newErrors.parentName =
+        parentNameValidation.error || "Invalid parent name";
+    }
+
+    // Validate parent phone
+    const parentPhoneValidation = validateAndSanitizePhone(
+      formData.parentPhone
+    );
+    if (!parentPhoneValidation.isValid) {
+      newErrors.parentPhone =
+        parentPhoneValidation.error || "Invalid phone number";
     }
 
     // Validate email
@@ -109,10 +121,10 @@ export default function Home() {
       newErrors.email = emailValidation.error || "Invalid email";
     }
 
-    // Validate phone
-    const phoneValidation = validateAndSanitizePhone(formData.phone);
-    if (!phoneValidation.isValid) {
-      newErrors.phone = phoneValidation.error || "Invalid phone number";
+    // Validate child name
+    const childNameValidation = validateAndSanitizeName(formData.childName);
+    if (!childNameValidation.isValid) {
+      newErrors.childName = childNameValidation.error || "Invalid child name";
     }
 
     if (Object.keys(newErrors).length > 0) {
@@ -129,9 +141,10 @@ export default function Home() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          name: validateAndSanitizeName(formData.name).sanitized,
+          name: validateAndSanitizeName(formData.parentName).sanitized,
+          child_name: validateAndSanitizeName(formData.childName).sanitized,
           email: validateAndSanitizeEmail(formData.email).sanitized,
-          phone: validateAndSanitizePhone(formData.phone).sanitized,
+          phone: validateAndSanitizePhone(formData.parentPhone).sanitized,
         }),
       });
 
@@ -175,7 +188,8 @@ export default function Home() {
           },
           body: JSON.stringify({
             id: data.participant.id,
-            name: data.participant.name,
+            name: data.participant.child_name || "",
+            parent_name: data.participant.name || "",
             email: data.participant.email,
             phone: data.participant.phone || "",
             score_percent: data.participant.score_percent || 0,
@@ -239,37 +253,77 @@ export default function Home() {
             onSubmit={handleSubmit}
             className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 sm:p-8 space-y-6"
           >
-            {/* Name Field */}
+            {/* Parent Name Field */}
             <div>
               <label
-                htmlFor="name"
+                htmlFor="parentName"
                 className="block text-sm font-medium text-black mb-2"
               >
-                Full Name <span className="text-red-500">*</span>
+                Parent&apos;s Name <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
-                id="name"
-                name="name"
-                value={formData.name}
+                id="parentName"
+                name="parentName"
+                value={formData.parentName}
                 onChange={handleChange}
                 maxLength={FIELD_LIMITS.name.max}
                 className={`w-full px-4 py-3 rounded-lg border ${
-                  errors.name
+                  errors.parentName
                     ? "border-red-300 focus:border-red-500 focus:ring-red-500"
                     : "border-gray-300 focus:border-brand-green focus:ring-brand-green"
                 } focus:outline-none focus:ring-2 focus:ring-opacity-20 transition-all duration-200 text-text-dark placeholder-gray-400`}
-                placeholder="Enter your full name"
-                aria-invalid={!!errors.name}
-                aria-describedby={errors.name ? "name-error" : undefined}
+                placeholder="Enter parent's full name"
+                aria-invalid={!!errors.parentName}
+                aria-describedby={
+                  errors.parentName ? "parentName-error" : undefined
+                }
               />
-              {errors.name && (
+              {errors.parentName && (
                 <p
-                  id="name-error"
+                  id="parentName-error"
                   className="mt-1 text-sm text-red-600"
                   role="alert"
                 >
-                  {errors.name}
+                  {errors.parentName}
+                </p>
+              )}
+            </div>
+
+            {/* Parent Phone Field */}
+            <div>
+              <label
+                htmlFor="parentPhone"
+                className="block text-sm font-medium text-black mb-2"
+              >
+                Parent&apos;s Phone Number{" "}
+                <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="tel"
+                id="parentPhone"
+                name="parentPhone"
+                value={formData.parentPhone}
+                onChange={handleChange}
+                maxLength={FIELD_LIMITS.phone.max}
+                className={`w-full px-4 py-3 rounded-lg border ${
+                  errors.parentPhone
+                    ? "border-red-300 focus:border-red-500 focus:ring-red-500"
+                    : "border-gray-300 focus:border-brand-green focus:ring-brand-green"
+                } focus:outline-none focus:ring-2 focus:ring-opacity-20 transition-all duration-200 text-black placeholder-gray-400`}
+                placeholder="+1 (555) 123-4567"
+                aria-invalid={!!errors.parentPhone}
+                aria-describedby={
+                  errors.parentPhone ? "parentPhone-error" : undefined
+                }
+              />
+              {errors.parentPhone && (
+                <p
+                  id="parentPhone-error"
+                  className="mt-1 text-sm text-red-600"
+                  role="alert"
+                >
+                  {errors.parentPhone}
                 </p>
               )}
             </div>
@@ -309,37 +363,39 @@ export default function Home() {
               )}
             </div>
 
-            {/* Phone Field */}
+            {/* Child Name Field */}
             <div>
               <label
-                htmlFor="phone"
+                htmlFor="childName"
                 className="block text-sm font-medium text-black mb-2"
               >
-                Phone Number <span className="text-red-500">*</span>
+                Child&apos;s Name <span className="text-red-500">*</span>
               </label>
               <input
-                type="tel"
-                id="phone"
-                name="phone"
-                value={formData.phone}
+                type="text"
+                id="childName"
+                name="childName"
+                value={formData.childName}
                 onChange={handleChange}
-                maxLength={FIELD_LIMITS.phone.max}
+                maxLength={FIELD_LIMITS.name.max}
                 className={`w-full px-4 py-3 rounded-lg border ${
-                  errors.phone
+                  errors.childName
                     ? "border-red-300 focus:border-red-500 focus:ring-red-500"
                     : "border-gray-300 focus:border-brand-green focus:ring-brand-green"
-                } focus:outline-none focus:ring-2 focus:ring-opacity-20 transition-all duration-200 text-black placeholder-gray-400`}
-                placeholder="+1 (555) 123-4567"
-                aria-invalid={!!errors.phone}
-                aria-describedby={errors.phone ? "phone-error" : undefined}
+                } focus:outline-none focus:ring-2 focus:ring-opacity-20 transition-all duration-200 text-text-dark placeholder-gray-400`}
+                placeholder="Enter child's full name"
+                aria-invalid={!!errors.childName}
+                aria-describedby={
+                  errors.childName ? "childName-error" : undefined
+                }
               />
-              {errors.phone && (
+              {errors.childName && (
                 <p
-                  id="phone-error"
+                  id="childName-error"
                   className="mt-1 text-sm text-red-600"
                   role="alert"
                 >
-                  {errors.phone}
+                  {errors.childName}
                 </p>
               )}
             </div>

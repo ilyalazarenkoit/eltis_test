@@ -25,13 +25,22 @@ const supabase = createClient(supabaseUrl!, supabaseServiceRoleKey!, {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { name, email, phone } = body;
+    const { name, email, phone, child_name } = body;
 
-    // Validate and sanitize name
+    // Validate and sanitize parent name
     const nameValidation = validateAndSanitizeName(name);
     if (!nameValidation.isValid) {
       return NextResponse.json(
-        { error: nameValidation.error || "Invalid name" },
+        { error: nameValidation.error || "Invalid parent name" },
+        { status: 400 }
+      );
+    }
+
+    // Validate and sanitize child name
+    const childNameValidation = validateAndSanitizeName(child_name);
+    if (!childNameValidation.isValid) {
+      return NextResponse.json(
+        { error: childNameValidation.error || "Invalid child name" },
         { status: 400 }
       );
     }
@@ -59,6 +68,7 @@ export async function POST(request: NextRequest) {
       .insert([
         {
           name: nameValidation.sanitized,
+          child_name: childNameValidation.sanitized,
           email: emailValidation.sanitized,
           phone: phoneValidation.sanitized,
           answers: [],
